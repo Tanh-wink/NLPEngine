@@ -244,7 +244,7 @@ class Bert_LSTM_CRF(Basic_task):
                 line = json.loads(line)
                 text = line["text"]
 
-                input_ids = [self.vocab.get_id("[CLS]")] + [self.vocab.word2id.get(t, self.vocab.get_id("[UNK]")) for t in text] + [self.vocab.get_id("[SEP]")]
+                input_ids = [self.vocab.get_id("[CLS]")] + [self.vocab.word2id.get(t, self.vocab.get_id("[UNK]")) for t in text][:self.max_len - 2] + [self.vocab.get_id("[SEP]")]
                 token_type_ids = [0] * len(input_ids) + [0] * (self.max_len - len(input_ids))
                 input_masks = [1] * len(input_ids) + [0] * (self.max_len - len(input_ids))
 
@@ -263,7 +263,7 @@ class Bert_LSTM_CRF(Basic_task):
                                         labels[start_index] = 'B-'+key
                                         labels[start_index+1:end_index+1] = ['I-'+key]*(len(sub_name)-1)
 
-                    label_ids = [0] + [self.label_vocab.word2id[each] for each in labels] + [0]
+                    label_ids = [0] + [self.label_vocab.word2id[each] for each in labels][:self.max_len - 2] + [0]
                     assert len(input_ids) == len(label_ids)
                     label_ids = label_ids + [0] * (self.max_len - len(label_ids))
                     assert len(label_ids) == self.max_len
