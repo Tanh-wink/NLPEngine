@@ -1,3 +1,4 @@
+import os
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW 
 import torch
@@ -16,6 +17,7 @@ class Basic_task(object):
         super(Basic_task, self).__init__()
         self.task_config = task_config
         self.buffer_loss = 0
+        self.global_step = 0
 
         if self.task_config.gpuids != None:
             # Set device as `cuda` (GPU)
@@ -84,7 +86,8 @@ class Basic_task(object):
     def run_one_step(self, batch, model):
         if self.task_config.gpuids != None:
             for k, v in batch.items():
-                batch[k] = v.to(self.device)   # 数据加载到显存中
+                if isinstance(v, torch.Tensor):
+                    batch[k] = v.to(self.device)   # 数据加载到显存中
         # Use ids, masks, and token types as input to the model
         # Predict logits for each of the input tokens for each batch
         outputs = model(batch)  #
@@ -93,3 +96,20 @@ class Basic_task(object):
 
     def loss_buffer(self, loss):
         self.buffer_loss += loss.item()
+
+    def save_checkpoint(self, model_path, epoch=None, save_step=False):
+        if epoch is not None:
+            model_path = model_path + "_" + epoch
+        if save_step:
+            model_path = model_path + "_" + self.global_step
+        
+        if not os.path.exists(model_path):
+            os.makedirs(model_path)
+      
+        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
+        model_to_save.save_pretrained(model_path)
+    
+    def load_model(self, model_path):
+        trained_model_path = os.path.join(model_path, "pytorch_model.bin")
+        self.model.load_state_dict(torch.load(trained_model_path))
+        

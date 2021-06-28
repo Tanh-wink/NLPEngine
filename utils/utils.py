@@ -15,3 +15,9 @@ def save_pkl_data(data, filePath):
     with open(filePath, 'wb') as fp:
         fp.write(data_pkl)
     print(f'saved {filePath}')
+
+
+def check_dir(paths):
+    for path in paths:
+        if not os.path.exists(path):
+            os.makedirs(path)
