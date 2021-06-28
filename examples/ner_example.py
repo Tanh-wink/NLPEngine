@@ -80,7 +80,7 @@ class Config:
 # 构建模型动态计算图
 class Model(BertPreTrainedModel):
     """
-    模型说明：成语完形填空式阅读理解baseline模型
+    模型说明：bert + BiLstm + CRF, 用于 命名实体识别 任务
     """
     def __init__(self, model_config, task_config):
         super(Model, self).__init__(model_config)
