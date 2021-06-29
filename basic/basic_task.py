@@ -1,4 +1,5 @@
 import os
+from torch.functional import Tensor
 from transformers import get_linear_schedule_with_warmup
 from transformers import AdamW 
 import torch
@@ -84,20 +85,37 @@ class Basic_task(object):
         pass
 
     def run_one_step(self, batch, model):
+        inputs = {}
         if self.task_config.gpuids != None:
             for k, v in batch.items():
                 if isinstance(v, torch.Tensor):
-                    batch[k] = v.to(self.device)   # 数据加载到显存中
+                    inputs[k] = v.to(self.device)   # 数据加载到显存中
         # Use ids, masks, and token types as input to the model
         # Predict logits for each of the input tokens for each batch
-        outputs = model(batch)  #
+        outputs = model(inputs)  #
 
+        return outputs
+    
+    def predict(self, model, data_loader):
+        model.eval()
+        outputs = []
+        for bi, batch in enumerate(data_loader):
+            model_outputs = self.run_one_step(batch, model)
+            for k, v in model_outputs.items():
+                if isinstance(v, torch.Tensor):
+                    model_outputs[k] = v.detach().cpu().numpy().tolist()
+            keys = list(batch.keys())
+            batch_size = len(batch[keys[0]])
+            for i in range(batch_size):
+                item_output = {k: v[i] for k, v in batch.items()}
+                item_output.update({k: v[i] for k, v in model_outputs.items()})   
+                outputs.append(item_output)  
         return outputs
 
     def loss_buffer(self, loss):
         self.buffer_loss += loss.item()
 
-    def save_checkpoint(self, model_path, epoch=None, save_step=False):
+    def save_checkpoint(self, model, model_path, epoch=None, save_step=False):
         if epoch is not None:
             model_path = model_path + "_" + epoch
         if save_step:
@@ -106,7 +124,7 @@ class Basic_task(object):
         if not os.path.exists(model_path):
             os.makedirs(model_path)
       
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
+        model_to_save = model.module if hasattr(model, "module") else model
         model_to_save.save_pretrained(model_path)
     
     def load_model(self, model_path):
