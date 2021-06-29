@@ -6,14 +6,14 @@
 
 python >= 3.5
 
-pytorch
+pytorch==1.9.0
 
-numpy
+numpy==1.17.0
 
-transformers
+transformers==3.0.0
 
 ### 3、使用
-所有新创建的任务都在task文件夹下，可以参考example  
+所有新创建的任务都在task文件夹下，可以参考examples文件夹下的例子
 
 需要修改的代码部分：  
 
@@ -24,6 +24,12 @@ transformers
 （3）配置config类的任务所需超参数  
 
 写完这三个部分的代码，整个模型训练基本就可以运行起来了  
+
+### 4、已新增的example
+
+examples文件夹下：
+
+命名实体识别任务：ner_example.py  
 
 
 **框架后续将继续完善**  
