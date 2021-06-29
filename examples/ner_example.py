@@ -7,7 +7,8 @@ import re
 import random
 from tqdm import tqdm
 
-sys.path.append(os.path.abspath(".."))
+word_dir = os.getcwd()
+sys.path.extend([os.path.abspath(".."), word_dir])
 
 from basic.basic_task import Basic_task, Task_Mode
 from basic.register import register_task, find_task
@@ -31,7 +32,6 @@ project_dir = os.path.split(workdir)[0]
 命名实体识别任务：
     模型：bert + BiLstm + CRF
     数据集：中文clue评测任务中cluener数据集：下载地址：https://www.cluebenchmarks.com/introduce.html
-    infer部分代码还没实现
     开发集：acc: 0.7741 ,  recall: 0.7965 ,  f1: 0.7852  (bert-wwm-base)
 """
 
@@ -47,9 +47,9 @@ class Config:
     epochs = 5
     lr = 5e-5   # 学习率
 
-    do_train = False
+    do_train = True
     do_eval = True
-    do_infer = False
+    do_infer = True
 
     # 新增超参数
     margin = 1
@@ -58,7 +58,7 @@ class Config:
     num_labels = 12
     use_lstm = True
 
-    task_name = "Bert_LSTM_CRF"
+    task_name = "NER_Example"
 
     # 配置路径
     train_data_path = "/workspace/data/cluener/train.json"  # 训练集数据的路径，建议绝对路径
@@ -126,7 +126,7 @@ class Model(BertPreTrainedModel):
 
 # 编写任务
 @ register_task
-class Bert_LSTM_CRF(Basic_task):
+class NER_Example(Basic_task):
     def __init__(self, task_config):
         super().__init__(task_config)
         self.task_config = task_config
@@ -138,10 +138,11 @@ class Bert_LSTM_CRF(Basic_task):
         self.vocab = Vocab(task_config.vocab_path)
         self.label_vocab = Vocab(self.task_config.label_list_path)
         task_config.num_labels = self.label_vocab.vocab_size
-
-        self.model = Model.from_pretrained(pretrained_model_name_or_path=self.task_config.bert_model_path,
+        if task_config.do_train:
+            self.model = Model.from_pretrained(pretrained_model_name_or_path=self.task_config.bert_model_path,
                                            config=self.model_config, task_config=task_config)
-
+        else:
+            self.model = Model(self.model_config, task_config=task_config)
         if self.task_config.gpuids != None:
             self.model.to(self.device)
         # 单机多卡训练
@@ -152,38 +153,34 @@ class Bert_LSTM_CRF(Basic_task):
         data_loader = torch.utils.data.DataLoader(
             dataset,
             shuffle=False,
-            batch_size=self.task_config.eval_batch_size,
-            num_workers=0
+            batch_size=self.task_config.eval_batch_size
         )
-        self.model.eval()
-        outputs = []
-        pred_labels = []
-        true_labels = []
         metric = SeqEntityScore(self.label_vocab.id2word, markup="bio")
-        loss_buffer = 0
-        for bi, batch in enumerate(data_loader):
-            model_outputs = self.run_one_step(batch, self.model)
-            logits = model_outputs.pop("logits")      
-            texts = batch["text"]
-            label_ids = batch['label_ids'].detach().cpu().numpy().tolist()
-            tags = logits
-            for i, text in enumerate(texts):
-                text_len = len(text)
-                tag = tags[i][1:-1]
-                label = label_ids[i][1:text_len + 1]
-                assert len(tag) == text_len
+        outputs = self.predict(self.model, data_loader)
+        for output in outputs:
+            logits = output["logits"]     
+            text = output["text"]
+            tag = logits[1:-1]
+            text_len = min(len(text), self.max_len)
+            assert len(tag) == text_len
+            pred_tags = [self.label_vocab.id2word[t] for t in tag]
+            if mode == Task_Mode.Eval:
+                label_ids = output['label_ids'].cpu().numpy().tolist()
+                label = label_ids[1:text_len + 1]
                 assert len(label) == text_len
-                temp_1 = [self.label_vocab.id2word[l] for l in label]
-                temp_2 = [self.label_vocab.id2word[t] for t in tag]
-                metric.update(pred_paths=[temp_2], label_paths=[temp_1])
+                true_tags = [self.label_vocab.id2word[l] for l in label]
+                metric.update(label_tags=[true_tags], pred_tags=[pred_tags])
+            else:
+                entities = metric.get_entity(pred_tags=pred_tags)
+                output["result"] = entities
             
         if mode == Task_Mode.Eval:
-            eval_info, entity_info = metric.result()
+            eval_info, entity_info = metric.eval_result()
             info = ", ".join([f' {key}: {value:.4f} ' for key, value in eval_info.items()])
             logger.info(f"Evaluate: epoch={epoch}, step={self.global_step}, {info}")
             return eval_info["f1"]
         else:
-            return pred_labels
+            return outputs
 
     def train(self, dataset, valid_dataset=None):
         logging.info(f"train dataset size = {len(dataset)}")
@@ -229,7 +226,7 @@ class Bert_LSTM_CRF(Basic_task):
                         logger.info("********** Early stopping ********")
                         break
             # 保存训练过程中的模型，防止意外程序停止，可以接着继续训练
-            # self.save_checkpoint(model_path=self.task_config.model_save_path, epoch=epoch)
+            # self.save_checkpoint(model=self.model, model_path=self.task_config.model_save_path, epoch=epoch)
        
     
     def read_data(self, file, mode):
@@ -324,7 +321,7 @@ def run():
     if config.do_infer:
         task.load_model(config.model_save_path)
         for test_path in config.test_data_path:
-            dataset = task.read_data(config.test_data_path, mode=Task_Mode.Infer)
+            dataset = task.read_data(test_path, mode=Task_Mode.Infer)
             task.evaluate(dataset, mode=Task_Mode.Infer)
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ class SeqEntityScore(object):
         self.id2label = id2label
         self.markup = markup
         self.reset()
+        self.outputs = []
 
     def reset(self):
         self.origins = []
@@ -18,7 +19,7 @@ class SeqEntityScore(object):
         f1 = 0. if recall + precision == 0 else (2 * precision * recall) / (precision + recall)
         return recall, precision, f1
 
-    def result(self):
+    def eval_result(self):
         class_info = {}
         origin_counter = Counter([x[0] for x in self.origins])
         found_counter = Counter([x[0] for x in self.founds])
@@ -35,24 +36,30 @@ class SeqEntityScore(object):
         recall, precision, f1 = self.compute(origin, found, right)
         return {'acc': precision, 'recall': recall, 'f1': f1}, class_info
 
-    def update(self, label_paths, pred_paths):
+    def update(self, label_tags, pred_tags):
         '''
-        labels_paths: [[],[],[],....]
-        pred_paths: [[],[],[],.....]
-
-        :param label_paths:
-        :param pred_paths:
+        :param label_tags:
+        :param pred_tags:
         :return:
         Example:
-            >>> labels_paths = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
-            >>> pred_paths = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+            >>> label_tags = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+            >>> pred_tags = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
         '''
-        for label_path, pre_path in zip(label_paths, pred_paths):
-            label_entities = get_entities(label_path, self.id2label,self.markup)
-            pre_entities = get_entities(pre_path, self.id2label,self.markup)
+        for label_tag, pre_tag in zip(label_tags, pred_tags):
+            label_entities = get_entities(label_tag, self.id2label,self.markup)
+            pre_entities = get_entities(pre_tag, self.id2label,self.markup)
             self.origins.extend(label_entities)
             self.founds.extend(pre_entities)
             self.rights.extend([pre_entity for pre_entity in pre_entities if pre_entity in label_entities])
+            
+    def get_entity(self, pred_tags):
+        '''
+        Example:
+            >>> pred_tags = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        '''
+        pre_entities = get_entities(pred_tags, self.id2label, self.markup)
+        return pre_entities
+        
 
 class SpanEntityScore(object):
     def __init__(self, id2label):
@@ -136,7 +143,7 @@ def get_entity_bios(seq,id2label):
             chunk = [-1, -1, -1]
     return chunks
 
-def get_entity_bio(seq,id2label):
+def get_entity_bio(seq, id2label=None):
     """Gets entities from sequence.
     note: BIO
     Args:
