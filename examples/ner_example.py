@@ -161,7 +161,7 @@ class NER_Example(Basic_task):
             logits = output["logits"]     
             text = output["text"]
             tag = logits[1:-1]
-            text_len = min(len(text), self.max_len)
+            text_len = min(len(text), self.max_len - 2)
             assert len(tag) == text_len
             pred_tags = [self.label_vocab.id2word[t] for t in tag]
             if mode == Task_Mode.Eval:
