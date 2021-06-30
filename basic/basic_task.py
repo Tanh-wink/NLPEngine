@@ -108,7 +108,7 @@ class Basic_task(object):
             batch_size = len(batch[keys[0]])
             for i in range(batch_size):
                 item_output = {k: v[i] for k, v in batch.items()}
-                item_output.update({k: v[i] for k, v in model_outputs.items()})   
+                item_output.update({k: v[i] for k, v in model_outputs.items() if not k.endswith("loss")})   
                 outputs.append(item_output)  
         return outputs
 
