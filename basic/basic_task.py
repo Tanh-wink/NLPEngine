@@ -103,7 +103,7 @@ class Basic_task(object):
             model_outputs = self.run_one_step(batch, model)
             for k, v in model_outputs.items():
                 if isinstance(v, torch.Tensor):
-                    model_outputs[k] = v.detach().cpu().numpy().tolist()
+                    model_outputs[k] = v.detach().cpu()
             keys = list(batch.keys())
             batch_size = len(batch[keys[0]])
             for i in range(batch_size):
