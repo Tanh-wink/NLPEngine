@@ -11,6 +11,7 @@ __pycache__/
 test/
 output/
 model_save/
+.idea/
 
 # Distribution / packaging
 .Python
