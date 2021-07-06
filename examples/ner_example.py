@@ -321,7 +321,9 @@ def run():
     if config.do_infer:
         task.load_model(config.model_save_path)
         for test_path in config.test_data_path:
+            logging.info(f"Testing model in {test_path}")
             dataset = task.read_data(test_path, mode=Task_Mode.Infer)
+            logging.info(f"test dataset size = {len(dataset)}")
             task.evaluate(dataset, mode=Task_Mode.Infer)
 
 if __name__ == '__main__':
