@@ -7,8 +7,8 @@ import re
 import random
 from tqdm import tqdm
 
-word_dir = os.getcwd()
-sys.path.extend([os.path.abspath(".."), word_dir])
+work_dir = os.getcwd()
+sys.path.extend([os.path.abspath(".."), work_dir])
 
 from basic.basic_task import Basic_task, Task_Mode
 from basic.register import register_task, find_task
