@@ -30,6 +30,7 @@ transformers==3.0.0
 examples文件夹下：
 
 命名实体识别任务：ner_example.py  
+成语阅读理解任务：cloze_example.py  
 
 
 **框架后续将继续完善**  
