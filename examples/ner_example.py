@@ -33,7 +33,7 @@ project_dir = os.path.split(workdir)[0]
 命名实体识别任务：
     模型：bert + BiLstm + CRF
     数据集：中文clue评测任务中cluener数据集：下载地址：https://www.cluebenchmarks.com/introduce.html
-    开发集：acc: 0.7741 ,  recall: 0.7965 ,  f1: 0.7852  (bert-wwm-base)
+    开发集：precision: 0.7649 ,  recall: 0.7920 ,  f1: 0.7782  (bert-wwm-base)
 """
 
 class Config:
