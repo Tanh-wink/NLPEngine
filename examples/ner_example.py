@@ -19,8 +19,9 @@ import torch
 from torch import nn
 from transformers import BertPreTrainedModel, BertConfig, BertTokenizer, BertModel
 
-from TorchCRF import CRF
-from utils.ner_metrics import SeqEntityScore
+# from TorchCRF import CRF
+from metrics.ner_metrics import SeqEntityScore
+from models.crf import CRF
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s: %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -92,7 +93,8 @@ class Model(BertPreTrainedModel):
         self.lstm = nn.LSTM(model_config.hidden_size, task_config.rnn_dim, num_layers=1, bidirectional=True, batch_first=True)
         self.dropout = nn.Dropout(0.5)
         self.linear = nn.Linear(task_config.rnn_dim * 2, task_config.num_labels)
-        self.crf = CRF(task_config.num_labels, use_gpu=True)
+        # self.crf = CRF(task_config.num_labels, use_gpu=True)
+        self.crf = CRF(num_tags=task_config.num_labels, batch_first=True)
 
         self.init_weights()
 
@@ -113,7 +115,7 @@ class Model(BertPreTrainedModel):
         sequence_outputs_drop = self.dropout(sequence_outputs)
         emissions = self.linear(sequence_outputs_drop)
         
-        logits = self.crf.viterbi_decode(emissions, attention_mask.byte())
+        logits = self.crf.decode(emissions, attention_mask.byte())[0]
 
         outputs = {
             "logits": logits,
@@ -160,9 +162,9 @@ class NER_Example(Basic_task):
         for output in outputs:
             logits = output["logits"]     
             text = output["text"]
-            tag = logits[1:-1]
+            tag = logits[1:-1].numpy().tolist()
             text_len = min(len(text), self.max_len - 2)
-            assert len(tag) == text_len
+            tag = tag[:text_len]
             pred_tags = [self.label_vocab.id2word[t] for t in tag]
             if mode == Task_Mode.Eval:
                 label_ids = output['label_ids'].cpu().numpy().tolist()
